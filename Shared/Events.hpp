@@ -8,6 +8,7 @@ enum class Event : uint8_t{
   DIRECTION = 3,
   BROADCAST_SCORE = 4,
   USERNAME = 5,
+  MAP_SIZE = 6,
   UNKNOWN = 255
 };
 

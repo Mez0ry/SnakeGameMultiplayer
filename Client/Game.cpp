@@ -126,6 +126,13 @@ void Game::InputHandler()
             }
             break;
           }
+          case Event::MAP_SIZE:{
+            Vec2 map_size;
+            packet >> map_size;
+            m_Map.SetMapSize(map_size);
+
+            break;
+          }
           case Event::BROADCAST_POSITION:{
             uint32_t client_id{};
             uint8_t entity_type;
@@ -160,19 +167,29 @@ void Game::InputHandler()
 
           case Event::BROADCAST_SCORE:{
             uint32_t client_id{};
-            char username[1024];
-            memset(&username,'\0',strlen(username));
 
             int score;
-            packet >> client_id >> username >> score;
+            packet >> client_id >> score;
 
             if(m_GameScoreMap.count(client_id) < 1){
              m_GameScoreMap.insert(std::make_pair(client_id,GameScore()));
-             m_UserNameMap.insert(std::make_pair(client_id,username));
             }
 
             m_GameScoreMap[client_id].SetScore(score);
 
+            break;
+          }
+
+          case Event::USERNAME:{
+            uint32_t client_id;
+            char username[1024];
+            memset(&username,'\0',strlen(username));
+
+            packet >> client_id >> username;
+
+            if(m_UserNameMap.count(client_id) < 1){
+              m_UserNameMap.insert(std::make_pair(client_id,username));
+            }
             break;
           }
         }
@@ -185,7 +202,7 @@ void Game::InputHandler()
 
 void Game::Update()
 {
-  if(m_ClientData.id != 0){
+  if(m_ClientData.id != 0 && m_Snakes.count(m_ClientData.id) > 0){
     
     auto& pos = m_Snakes[m_ClientData.id].GetPosition();
     
@@ -225,7 +242,7 @@ void Game::Render()
     auto score_str = std::to_string(scores[i].first);
     auto username_str = scores[i].second;
 
-    std::string msg("User: " + username_str + " Score: " + score_str);
+    std::string msg("Username: " + username_str + " Score: " + score_str);
 
     move((win_h * 0.2) + offset,(win_w * 0.6) - (msg.length() / 2));
     printw(msg.c_str());
@@ -234,6 +251,4 @@ void Game::Render()
   m_Map.Render();
 
   refresh();
-
-  //usleep(30000);
 }

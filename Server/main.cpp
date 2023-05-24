@@ -2,47 +2,25 @@
 #include "../Shared/Events.hpp"
 #include "../Shared/ClientData.hpp"
 #include <iostream>
-#include <memory>
 #include <unordered_map>
-#include <cstring>
-#include <charconv>
 #include "../Shared/Packet.hpp"
 #include "../Shared/Vector.hpp"
-#include <random>
+#include "Random.hpp"
+#include "Map.hpp"
+#include "Food.hpp"
+#include "GameScore.hpp"
 
 static std::unordered_map<uint32_t, ClientData*> g_ClientsMap;
-
-static uint32_t g_FoodAmount = 8;
-
-extern int GetRandomIntInRange(int a,int b){
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> distr(a,b);
-  return distr(rng);
-}
-
-extern Vec2 GetRandomPosition(){
-  return {GetRandomIntInRange(1,18),GetRandomIntInRange(1,18)};
-}
-
-static std::unordered_map<uint32_t,Vec2> g_FoodMap; // key - id of food, value - their position
-
-static std::unordered_map<uint32_t,int> g_GameScoreMap; //key - client_id, value - score
-
-[[nodiscard]] extern ENetPacket* GetFoodPositionPacket(){
-  Network::Packet packet;
-  packet << static_cast<uint8_t>(Event::BROADCAST_POSITION) << 0u << static_cast<uint8_t>(EntityType::FOOD);
-  for(auto& food : g_FoodMap){
-    packet << food.first << food.second;
-  }
-  return Network::create_packet(packet,ENET_PACKET_FLAG_RELIABLE);
-}
 
 int main() {
   ENet::ServerWrapper ServerWrapper;
 
-  for(uint32_t i = 0;i<g_FoodAmount;i++){
-    g_FoodMap.insert(std::make_pair(i,GetRandomPosition()));
+  for(size_t i = 0;i < Food::g_FoodAmount;i++){
+    Food::Food food;
+    food.id = i;
+    food.position = Random::GetRandomPositionInRange({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+
+    Food::g_FoodVec.push_back(std::make_shared<Food::Food>(food));
   }
 
   ServerWrapper.SetAddress(ENET_HOST_ANY, 1337);
@@ -62,16 +40,26 @@ int main() {
         
         if (g_ClientsMap.count(client_id) == 0) {
           g_ClientsMap.insert(std::make_pair(client_id, new ClientData(cl)));
-          g_GameScoreMap.insert(std::make_pair(client_id,0));
+          GameScore::GameScore game_score;
+          game_score.client_id = client_id;
+          game_score.score = 0;
+
+          GameScore::g_GameScoreVec.push_back(game_score);
         }
 
         ServerWrapper.GetEvent().peer->data = g_ClientsMap[client_id];
 
         Network::Packet packet;
         packet << static_cast<uint8_t>(Event::CLIENT_ID) << client_id;
-
+        
         Network::send_packet(ServerWrapper.GetEvent().peer,packet,0,ENET_PACKET_FLAG_RELIABLE);
-        enet_host_broadcast(ServerWrapper.GetHost(),0,GetFoodPositionPacket());
+        
+        Network::Packet map_size_packet;
+        map_size_packet << static_cast<uint8_t>(Event::MAP_SIZE) << Map::g_MapSize;
+
+        Network::send_packet(ServerWrapper.GetEvent().peer,map_size_packet,0,ENET_PACKET_FLAG_RELIABLE);
+
+        enet_host_broadcast(ServerWrapper.GetHost(),0,Food::CreateFoodPositionPacket(Food::g_FoodVec));
         break;
       }
       case ENET_EVENT_TYPE_DISCONNECT: {
@@ -102,18 +90,26 @@ int main() {
           >> pos;
           
           if((EntityType)entity_type == EntityType::SNAKE){
-            for(auto& food : g_FoodMap){
-              if(pos == food.second){
+            for(auto& food : Food::g_FoodVec){
+              if(pos == food->position){
                 int score_to_add = 1;
-                g_GameScoreMap[recv_id] += score_to_add;
+                auto& game_score_vec = GameScore::g_GameScoreVec;
 
-                Network::Packet score_packet;
-                score_packet << static_cast<uint8_t>(Event::BROADCAST_SCORE) << recv_id << g_ClientsMap[recv_id]->sUsername.c_str() << g_GameScoreMap[recv_id];
+                auto it = std::find_if(game_score_vec.begin(),game_score_vec.end(),[&](const GameScore::GameScore& game_score){
+                  return (game_score.client_id == recv_id);
+                });
 
-                enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(score_packet,ENET_PACKET_FLAG_RELIABLE));
-                
-                food.second = GetRandomPosition();
-                enet_host_broadcast(ServerWrapper.GetHost(),0,GetFoodPositionPacket());
+                if(it != game_score_vec.end()){
+                  it->score += score_to_add;
+
+                  Network::Packet score_packet;
+                  score_packet << static_cast<uint8_t>(Event::BROADCAST_SCORE) << recv_id << it->score;
+
+                  enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(score_packet,ENET_PACKET_FLAG_RELIABLE));
+                }
+
+                food->position = Random::GetRandomPositionInRange({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+                enet_host_broadcast(ServerWrapper.GetHost(),0,Food::CreateFoodPositionPacket(Food::g_FoodVec));
               }
             }
           }
@@ -145,6 +141,11 @@ int main() {
           
           if(g_ClientsMap.count(recv_id) >= 1){
             g_ClientsMap[recv_id]->sUsername = username;
+            if(g_ClientsMap.size() > 1){
+              Network::Packet username_packet;
+              username_packet << static_cast<uint8_t>(Event::USERNAME) << recv_id << username;
+              enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(username_packet,ENET_PACKET_FLAG_RELIABLE));
+            }
           }
           break;
         }
@@ -153,12 +154,13 @@ int main() {
       enet_packet_destroy (ServerWrapper.GetEvent().packet);
       break;
       } // !ENET_EVENT_TYPE_RECEIVE
-      }
+      }//! switch
     }
   }
 
   for(auto& client : g_ClientsMap){
     delete client.second;
   }
+
   return 0;
 }
