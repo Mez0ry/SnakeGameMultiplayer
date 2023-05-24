@@ -1,0 +1,1 @@
+add_library(ENetWrapper SHARED ENetWrapper.hpp ENetWrapper.cpp)
