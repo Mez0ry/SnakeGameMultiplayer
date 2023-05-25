@@ -8,7 +8,6 @@
 #include "Random.hpp"
 #include "Map.hpp"
 #include "Food.hpp"
-#include "GameScore.hpp"
 
 static std::unordered_map<uint32_t, ClientData*> g_ClientsMap;
 
@@ -25,7 +24,7 @@ int main() {
 
   ServerWrapper.SetAddress(ENET_HOST_ANY, 1337);
 
-  ServerWrapper.CreateHost(32, 2, 0, 0);
+  ServerWrapper.CreateHost(4, 2, 0, 0);
 
   uint32_t client_id = 0;
 
@@ -37,20 +36,17 @@ int main() {
         client_id++;
         ClientData cl;
         cl.id = client_id;
-        
+        cl.stats.Wins = 0;
+        cl.stats.Losses = 0;
+
         if (g_ClientsMap.count(client_id) == 0) {
           g_ClientsMap.insert(std::make_pair(client_id, new ClientData(cl)));
-          GameScore::GameScore game_score;
-          game_score.client_id = client_id;
-          game_score.score = 0;
-
-          GameScore::g_GameScoreVec.push_back(game_score);
         }
 
         ServerWrapper.GetEvent().peer->data = g_ClientsMap[client_id];
 
         Network::Packet packet;
-        packet << static_cast<uint8_t>(Event::CLIENT_ID) << client_id;
+        packet << static_cast<uint8_t>(Event::CLIENT_CONNECTED) << client_id;
         
         Network::send_packet(ServerWrapper.GetEvent().peer,packet,0,ENET_PACKET_FLAG_RELIABLE);
         
@@ -62,8 +58,22 @@ int main() {
         enet_host_broadcast(ServerWrapper.GetHost(),0,Food::CreateFoodPositionPacket(Food::g_FoodVec));
         break;
       }
+
       case ENET_EVENT_TYPE_DISCONNECT: {
         std::cout << "New client successfully disconnected" << '\n';
+        ClientData* client = reinterpret_cast<ClientData*>(&ServerWrapper.GetEvent().peer->data);
+        if(client != nullptr){
+         uint32_t disconnected_id = client->id;
+
+         delete g_ClientsMap[disconnected_id];
+         g_ClientsMap.erase(disconnected_id);
+         
+         Network::Packet packet;
+         packet << static_cast<uint8_t>(Event::CLIENT_DISCONNECTED) << disconnected_id;
+         enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(packet,ENET_PACKET_FLAG_RELIABLE));
+         ServerWrapper.GetEvent().peer->data = nullptr;
+        }
+        
         break;
       }
       case ENET_EVENT_TYPE_RECEIVE: {
@@ -88,22 +98,20 @@ int main() {
           Vec2 pos;
           packet >> recv_id >> entity_type
           >> pos;
-          
+
+          Network::Packet snake_pos_packet;
+
           if((EntityType)entity_type == EntityType::SNAKE){
+            
             for(auto& food : Food::g_FoodVec){
               if(pos == food->position){
                 int score_to_add = 1;
-                auto& game_score_vec = GameScore::g_GameScoreVec;
 
-                auto it = std::find_if(game_score_vec.begin(),game_score_vec.end(),[&](const GameScore::GameScore& game_score){
-                  return (game_score.client_id == recv_id);
-                });
-
-                if(it != game_score_vec.end()){
-                  it->score += score_to_add;
+                if(g_ClientsMap.count(recv_id)){
+                  g_ClientsMap[recv_id]->score += score_to_add;
 
                   Network::Packet score_packet;
-                  score_packet << static_cast<uint8_t>(Event::BROADCAST_SCORE) << recv_id << it->score;
+                  score_packet << static_cast<uint8_t>(Event::BROADCAST_SCORE) << recv_id << g_ClientsMap[recv_id]->score;
 
                   enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(score_packet,ENET_PACKET_FLAG_RELIABLE));
                 }
@@ -115,7 +123,6 @@ int main() {
           }
 
           enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(packet,ENET_PACKET_FLAG_RELIABLE));
-          
           break;
         }
         case Event::DIRECTION:{
@@ -127,11 +134,31 @@ int main() {
 
           current_snake_pos += direction;
 
+          if(!Map::IsOnMap(current_snake_pos)){
+            if(g_ClientsMap.count(recv_id)){
+              g_ClientsMap[recv_id]->stats.Losses += 1;
+
+              Network::Packet stats_packet;
+              uint32_t client_size = g_ClientsMap.size();
+              stats_packet << static_cast<uint8_t>(Event::BROADCAST_STATS) << client_size;
+              for(auto& client : g_ClientsMap){
+                if(client.first != recv_id){
+                  client.second->stats.Wins += 1;
+                }
+                stats_packet << client.first << client.second->stats.Wins << client.second->stats.Losses;
+              }
+              
+              enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(stats_packet,ENET_PACKET_FLAG_RELIABLE));
+
+              Vec2 new_snake_pos = {Map::g_MapSize.x / 2,Map::g_MapSize.y / 2};
+              current_snake_pos = new_snake_pos;
+            }
+          }
           Network::Packet snake_pos_packet;
           snake_pos_packet << static_cast<uint8_t>(Event::BROADCAST_POSITION) << recv_id << static_cast<uint8_t>(EntityType::SNAKE) << current_snake_pos;
           
           enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(snake_pos_packet,ENET_PACKET_FLAG_RELIABLE));
-
+          
           break;
         }
         case Event::USERNAME:{
@@ -145,6 +172,14 @@ int main() {
               Network::Packet username_packet;
               username_packet << static_cast<uint8_t>(Event::USERNAME) << recv_id << username;
               enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(username_packet,ENET_PACKET_FLAG_RELIABLE));
+              
+              for(auto& client : g_ClientsMap){
+                if(client.first != recv_id){
+                  Network::Packet others_username_packet;
+                  others_username_packet << static_cast<uint8_t>(Event::USERNAME) << client.first << client.second->sUsername.c_str();
+                  enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(others_username_packet,ENET_PACKET_FLAG_RELIABLE));
+                }
+              }
             }
           }
           break;

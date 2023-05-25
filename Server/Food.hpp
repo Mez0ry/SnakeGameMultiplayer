@@ -20,10 +20,12 @@ namespace Food{
 
     [[nodiscard]] extern ENetPacket* CreateFoodPositionPacket(const std::vector<std::shared_ptr<Food>>& food_list){
         Network::Packet packet;
-        packet << static_cast<uint8_t>(Event::BROADCAST_POSITION) << 0u << static_cast<uint8_t>(EntityType::FOOD);
+        packet << static_cast<uint8_t>(Event::BROADCAST_POSITION) << 0u << static_cast<uint8_t>(EntityType::FOOD) << g_FoodAmount;
+
         for(auto& food : food_list){
-        packet << food->id << food->position;
+         packet << food->id << food->position;
         }
+
         return Network::create_packet(packet,ENET_PACKET_FLAG_RELIABLE);
     }
     

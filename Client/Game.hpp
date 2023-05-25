@@ -3,7 +3,6 @@
 #include "Map.hpp"
 #include "Snake.hpp"
 #include "../Shared/ENetWrapper/ENetWrapper.hpp"
-#include <sstream>
 #include <cstring>
 #include <charconv>
 #include "../Shared/Events.hpp"
@@ -14,8 +13,9 @@
 #include "Window.hpp"
 #include <chrono>
 #include "Food.hpp"
-#include "GameScore.hpp"
 #include "Serializer.hpp"
+#include "../Shared/Stats.hpp"
+#include <memory>
 
 #define  GM_KEY_LEFT   4
 #define  GM_KEY_RIGHT  5
@@ -36,9 +36,17 @@ private:
   void InputHandler();
   void Update();
   void Render();
+private:
+
+ auto GetClientById(uint32_t id){
+  auto it = std::find_if(m_ClientsData.begin(),m_ClientsData.end(),[&](const std::shared_ptr<ClientData>& client){
+    return (client->id == id);
+  });
+
+  return (it != m_ClientsData.end()) ? (*it) : nullptr;
+ }
 
 private:
-  ClientData m_ClientData;
   Window m_Window;
 private:
   bool m_bRunning;
@@ -46,8 +54,9 @@ private:
 
   std::unordered_map<uint32_t,Snake> m_Snakes;
   std::unordered_map<uint32_t,Food> m_FoodMap;
-  std::unordered_map<uint32_t,GameScore> m_GameScoreMap;
-  std::unordered_map<uint32_t,std::string> m_UserNameMap;
+  //std::unordered_map<uint32_t,GameScore> m_GameScoreMap;
+  
+  std::vector<std::shared_ptr<ClientData>> m_ClientsData;
 
   ENet::ClientWrapper m_ClientWrapper;
   uint8_t m_key;

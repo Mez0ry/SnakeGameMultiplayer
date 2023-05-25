@@ -27,7 +27,7 @@ public:
 
   static void RenderEntity(Map& map,Entity& entity){
     auto& pos = entity.GetPosition();
-    if(IsOnBoard(pos)){
+    if(IsOnMap(pos)){
       move(pos.y,pos.x);
       addch(entity.GetSymbol());
       map.GetMap()[pos.y][pos.x] = entity.GetSymbol();
@@ -56,8 +56,8 @@ private:
 private:
   void CleanMap();
   void FillMap();
-
-  static bool IsOnBoard(const Vec2& pos){
+  
+  static bool IsOnMap(const Vec2& pos){
     return !(pos.x <= 0 || pos.y <= 0 || pos.x >= (m_MapSize.x - 1) || pos.y >= (m_MapSize.y - 1));
   }
   
