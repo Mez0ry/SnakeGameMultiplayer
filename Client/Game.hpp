@@ -67,6 +67,21 @@ private:
   }
   return Vec2(0,0);
  }
+
+ void RenderClientData(const std::shared_ptr<ClientData>& client_data, int offset_y){
+  int win_w{m_Window.GetWindowWidth()},win_h{m_Window.GetWindowHeight()};
+
+   std::string score_str = std::to_string(client_data->score);
+   auto username = client_data->sUsername;
+   auto wins = std::to_string(client_data->stats.wins);
+   auto losses = std::to_string(client_data->stats.losses);
+   
+   std::string msg("Username: " + username + " -"  " Score: " + score_str + "," + " Wins: " + wins + "," + " Losses: " + losses + ".");
+   move((win_h / 2) + offset_y,(win_w * 0.6) - (msg.length() / 2));
+   printw(msg.c_str());
+  
+ }
+
 private:
   Window m_Window;
   ENet::ClientWrapper m_ClientWrapper;

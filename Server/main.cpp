@@ -17,7 +17,7 @@ int main() {
   for(size_t i = 0;i < Food::g_FoodAmount;i++){
     Food::Food food;
     food.id = i;
-    food.position = Random::get_random_vec2({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+    food.position = Random::get_random_vec2({1,Map::g_MapSize.x - 2}, {1, Map::g_MapSize.y - 2});
 
     Food::g_FoodVec.push_back(std::make_shared<Food::Food>(food));
   }
@@ -113,7 +113,7 @@ int main() {
                   enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(score_packet,ENET_PACKET_FLAG_RELIABLE));
                 }
 
-                food->position = Random::get_random_vec2({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+                food->position = Random::get_random_vec2({1,Map::g_MapSize.x - 2}, {1, Map::g_MapSize.y - 2});
                 enet_host_broadcast(ServerWrapper.GetHost(),0,Food::create_food_position_packet(Food::g_FoodVec));
               }
             }

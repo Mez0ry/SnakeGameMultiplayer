@@ -268,18 +268,11 @@ void Game::Render()
     Map::RenderEntity(m_Map,food.second);
   }
 
-  int win_w{m_Window.GetWindowWidth()},win_h{m_Window.GetWindowHeight()};
-
-  for(size_t i = 0,offset_y = 0;i < m_ClientsData.size();i++,offset_y += 2){
-   std::string score_str = std::to_string(m_ClientsData[i]->score);
-   auto username = m_ClientsData[i]->sUsername;
-   auto wins = std::to_string(m_ClientsData[i]->stats.wins);
-   auto losses = std::to_string(m_ClientsData[i]->stats.losses);
-
-   std::string msg("Username: " + username + " -"  " Score: " + score_str + "," + " Wins: " + wins + "," + " Losses: " + losses + ".");
-   move((win_h / 2) + offset_y,(win_w * 0.6) - (msg.length() / 2));
-   printw(msg.c_str());
+  int y_offset = 0;
+  for(auto& client : m_ClientsData){
+    RenderClientData(client,y_offset);
+    y_offset += 2;
   }
-  
+
   m_Map.Render();
 }
