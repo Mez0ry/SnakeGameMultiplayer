@@ -43,7 +43,7 @@ private:
     }
     delete[] m_pMap;
   }
-
+  
   void AllocateMap(const Vec2& size){
     if(size.x == 0 || size.y == 0) return;
     

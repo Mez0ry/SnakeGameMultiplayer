@@ -9,7 +9,7 @@ struct Vec2 {
 
   Vec2() : x(0),y(0){}
   Vec2(int pos_x, int pos_y) : x(pos_x), y(pos_y) {}
-  Vec2(const Vec2& other){(*this).x = other.x; (*this).y = other.y; }
+  Vec2(const Vec2& other){x = other.x; y = other.y; }
   ~Vec2() = default;
   
   friend void swap(Vec2& lhs, Vec2& rhs){
@@ -20,13 +20,13 @@ struct Vec2 {
    * @brief used to get length/magnitude  of the vector
    * @return magnitude
   */
-  double Magnitude() const {return std::sqrt(this->x * this->x + this->y * this->y);}
+  double Magnitude() const {return std::sqrt(x * x + y * y);}
 
   /**
    * @brief used to get length/magnitude of the vector
    * @return length
   */
-  double Length() const {return std::sqrt(DotProduct({this->x,this->y},{this->x,this->y}));}
+  double Length() const {return std::sqrt(DotProduct({x,y},{x,y}));}
 
   /**
    * @brief used to get distance
@@ -47,7 +47,7 @@ struct Vec2 {
 
   float Angle(const Vec2& other) const
   {
-    return std::acos(this->DotProduct((*this),other) / Magnitude() * other.Magnitude());
+    return std::acos(DotProduct((*this),other) / Magnitude() * other.Magnitude());
   }
 
   static float Angle(const Vec2& lhs,const Vec2& rhs){
@@ -59,11 +59,11 @@ struct Vec2 {
    * @return unit vector on success otherwise empty vector
   */
   Vec2 Normalize() const{
-    double magnitude = this->Magnitude();
+    double magnitude = Magnitude();
     if(magnitude == 0) return {0,0};
 
     float inv_mag = 1.0f / magnitude;
-    const Vec2 cpy = {(int)(x * inv_mag), (int)(y * inv_mag)};
+    const Vec2 cpy = {static_cast<int>((x * inv_mag)), static_cast<int>((y * inv_mag))};
     return cpy;
   }
   
@@ -93,26 +93,26 @@ struct Vec2 {
   
   /** Comparison operators*/
   Vec2 operator-(const Vec2& rhs) const{
-    return {this->x - rhs.x, this->y - rhs.y};
+    return {x - rhs.x, y - rhs.y};
   }
 
   Vec2 operator-(Vec2& rhs) const{
-    return {this->x - rhs.x, this->y - rhs.y};
+    return {x - rhs.x, y - rhs.y};
   }
 
   Vec2 operator+(const Vec2& rhs) const{
-    return {this->x + rhs.x, this->y + rhs.y};
+    return {x + rhs.x, y + rhs.y};
   }
 
   Vec2& operator+=(const Vec2& rhs){
-    this->x += rhs.x;
-    this->y += rhs.y;
+    x += rhs.x;
+    y += rhs.y;
     return *this; 
   }
 
   Vec2& operator-=(const Vec2& rhs){
-    this->x -= rhs.x;
-    this->y -= this->y - rhs.y;
+    x -= rhs.x;
+    y -= y - rhs.y;
     return *this; 
   }
 
@@ -122,11 +122,11 @@ struct Vec2 {
   }
 
   bool operator==(const Vec2 &rhs) const {
-    return (this->x == rhs.x && this->y == rhs.y);
+    return (x == rhs.x && y == rhs.y);
   }
 
   bool operator!=(const Vec2 &rhs) const {
-    return !(this->x == rhs.x && this->y == rhs.y);
+    return !(x == rhs.x && y == rhs.y);
   }
   
   /** Assignment operators*/
@@ -140,29 +140,29 @@ struct Vec2 {
 
   Vec2 operator+=(const float scalar)
   {
-    this->x += scalar;
-    this->y += scalar;
+    x += scalar;
+    y += scalar;
     return *this;
   }
 
   Vec2 operator-=(const float scalar)
   {
-    this->x -= scalar;
-    this->y -= scalar;
+    x -= scalar;
+    y -= scalar;
     return *this;
   }
 
   Vec2 operator*=(const float scalar)
   {
-    this->x *= scalar;
-    this->y *= scalar;
+    x *= scalar;
+    y *= scalar;
     return *this;
   }
 
   Vec2 operator/=(const float scalar)
   {
-    this->x /= scalar;
-    this->y /= scalar;
+    x /= scalar;
+    y /= scalar;
     return *this;
   }
 
@@ -186,7 +186,7 @@ struct Vec2 {
 
   inline Vec2 operator*(const Vec2& vec)
   {
-    return {(*this).x * vec.x, (*this).y * vec.y};
+    return {x * vec.x, y * vec.y};
   }
 
   inline Vec2 operator/(const float scalar)

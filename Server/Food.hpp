@@ -18,7 +18,7 @@ namespace Food{
     
     static std::vector<std::shared_ptr<Food>> g_FoodVec;
 
-    [[nodiscard]] extern ENetPacket* CreateFoodPositionPacket(const std::vector<std::shared_ptr<Food>>& food_list){
+    [[nodiscard]] extern ENetPacket* create_food_position_packet(const std::vector<std::shared_ptr<Food>>& food_list){
         Network::Packet packet;
         packet << static_cast<uint8_t>(Event::BROADCAST_POSITION) << 0u << static_cast<uint8_t>(EntityType::FOOD) << g_FoodAmount;
 

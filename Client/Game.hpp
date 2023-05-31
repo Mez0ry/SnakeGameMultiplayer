@@ -33,7 +33,7 @@ public:
   void Play();
 
 private:
-  void InputHandler();
+  void HandleInput();
   void Update();
   void Render();
 private:
@@ -46,19 +46,39 @@ private:
   return (it != m_ClientsData.end()) ? (*it) : nullptr;
  }
 
+ Vec2 GetDirection(uint8_t key){
+  switch(key){
+    case GM_KEY_LEFT:{
+      return Vec2(-1,0);
+      break;
+    }
+    case GM_KEY_RIGHT:{
+      return Vec2(1,0);
+      break;
+    }
+    case GM_KEY_UP:{
+      return Vec2(0,-1);
+      break;
+    }
+    case GM_KEY_DOWN:{
+      return Vec2(0,1);
+      break;
+    }
+  }
+  return Vec2(0,0);
+ }
 private:
   Window m_Window;
+  ENet::ClientWrapper m_ClientWrapper;
 private:
+  uint8_t m_LastPressedKey;
   bool m_bRunning;
   Map m_Map;
 
   std::unordered_map<uint32_t,Snake> m_Snakes;
   std::unordered_map<uint32_t,Food> m_FoodMap;
-  //std::unordered_map<uint32_t,GameScore> m_GameScoreMap;
   
   std::vector<std::shared_ptr<ClientData>> m_ClientsData;
 
-  ENet::ClientWrapper m_ClientWrapper;
-  uint8_t m_key;
 };
 #endif //! SnakeGame_GAME_HPP

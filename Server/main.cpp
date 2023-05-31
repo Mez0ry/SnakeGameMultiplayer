@@ -17,7 +17,7 @@ int main() {
   for(size_t i = 0;i < Food::g_FoodAmount;i++){
     Food::Food food;
     food.id = i;
-    food.position = Random::GetRandomPositionInRange({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+    food.position = Random::get_random_vec2({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
 
     Food::g_FoodVec.push_back(std::make_shared<Food::Food>(food));
   }
@@ -36,8 +36,8 @@ int main() {
         client_id++;
         ClientData cl;
         cl.id = client_id;
-        cl.stats.Wins = 0;
-        cl.stats.Losses = 0;
+        cl.stats.wins = 0;
+        cl.stats.losses = 0;
 
         if (g_ClientsMap.count(client_id) == 0) {
           g_ClientsMap.insert(std::make_pair(client_id, new ClientData(cl)));
@@ -55,7 +55,7 @@ int main() {
 
         Network::send_packet(ServerWrapper.GetEvent().peer,map_size_packet,0,ENET_PACKET_FLAG_RELIABLE);
 
-        enet_host_broadcast(ServerWrapper.GetHost(),0,Food::CreateFoodPositionPacket(Food::g_FoodVec));
+        enet_host_broadcast(ServerWrapper.GetHost(),0,Food::create_food_position_packet(Food::g_FoodVec));
         break;
       }
 
@@ -96,10 +96,7 @@ int main() {
           uint32_t recv_id{};
           uint8_t entity_type;
           Vec2 pos;
-          packet >> recv_id >> entity_type
-          >> pos;
-
-          Network::Packet snake_pos_packet;
+          packet >> recv_id >> entity_type >> pos;
 
           if((EntityType)entity_type == EntityType::SNAKE){
             
@@ -116,8 +113,8 @@ int main() {
                   enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(score_packet,ENET_PACKET_FLAG_RELIABLE));
                 }
 
-                food->position = Random::GetRandomPositionInRange({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
-                enet_host_broadcast(ServerWrapper.GetHost(),0,Food::CreateFoodPositionPacket(Food::g_FoodVec));
+                food->position = Random::get_random_vec2({0,Map::g_MapSize.x - 2}, {0, Map::g_MapSize.y - 2});
+                enet_host_broadcast(ServerWrapper.GetHost(),0,Food::create_food_position_packet(Food::g_FoodVec));
               }
             }
           }
@@ -134,18 +131,18 @@ int main() {
 
           current_snake_pos += direction;
 
-          if(!Map::IsOnMap(current_snake_pos)){
+          if(!Map::is_on_map(current_snake_pos)){
             if(g_ClientsMap.count(recv_id)){
-              g_ClientsMap[recv_id]->stats.Losses += 1;
+              g_ClientsMap[recv_id]->stats.losses += 1;
 
               Network::Packet stats_packet;
               uint32_t client_size = g_ClientsMap.size();
               stats_packet << static_cast<uint8_t>(Event::BROADCAST_STATS) << client_size;
               for(auto& client : g_ClientsMap){
                 if(client.first != recv_id){
-                  client.second->stats.Wins += 1;
+                  client.second->stats.wins += 1;
                 }
-                stats_packet << client.first << client.second->stats.Wins << client.second->stats.Losses;
+                stats_packet << client.first << client.second->stats.wins << client.second->stats.losses;
               }
               
               enet_host_broadcast(ServerWrapper.GetHost(),0,Network::create_packet(stats_packet,ENET_PACKET_FLAG_RELIABLE));

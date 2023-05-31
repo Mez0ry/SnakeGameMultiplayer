@@ -4,10 +4,10 @@
 #include <string>
 
 typedef struct Stats{
-    Stats() : Wins(0),Losses(0){}
+    Stats() : wins(0),losses(0){}
     ~Stats() = default;
-    uint32_t Wins;
-    uint32_t Losses;
+    uint32_t wins;
+    uint32_t losses;
 };
 
 #endif //!__STATS_HPP__

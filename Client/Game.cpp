@@ -41,10 +41,11 @@ void Game::Play()
   {
     auto curr_time = Clock::now();
 
-    InputHandler();
+    HandleInput();
     Update();
     Render();
 
+    refresh();
     int frame_ticks = std::chrono::duration_cast<milliseconds>((Clock::now() - curr_time)).count();
     if(m_frameDelay > frame_ticks){
       usleep((m_frameDelay - frame_ticks) * 1000);
@@ -53,37 +54,23 @@ void Game::Play()
 
 }
 
-void Game::InputHandler()
+void Game::HandleInput()
 {
-  int8_t key = getch();
+  const int8_t key = getch();
 
   if(key >= 0){
-    m_key = (uint8_t)key;
-  }
-
-  Network::Packet direction_packet;
-
-  switch(m_key){
-    case GM_KEY_LEFT:{
-      direction_packet << static_cast<uint8_t>(Event::DIRECTION) << m_ClientsData.front()->id << Vec2(-1,0) << m_Snakes[m_ClientsData.front()->id].GetPosition();
-      break;
-    }
-    case GM_KEY_RIGHT:{
-      direction_packet << static_cast<uint8_t>(Event::DIRECTION) << m_ClientsData.front()->id << Vec2(1,0) << m_Snakes[m_ClientsData.front()->id].GetPosition();
-      break;
-    }
-    case GM_KEY_UP:{
-      direction_packet << static_cast<uint8_t>(Event::DIRECTION) << m_ClientsData.front()->id << Vec2(0,-1) << m_Snakes[m_ClientsData.front()->id].GetPosition();
-      break;
-    }
-    case GM_KEY_DOWN:{
-      direction_packet << static_cast<uint8_t>(Event::DIRECTION) << m_ClientsData.front()->id << Vec2(0,1) << m_Snakes[m_ClientsData.front()->id].GetPosition();
-      break;
-    }
+    m_LastPressedKey = static_cast<uint8_t>(key);
   }
   
-  if(!direction_packet.IsEmpty()){
-    Network::send_packet(m_ClientWrapper.GetPeer(),direction_packet,0,ENET_PACKET_FLAG_RELIABLE);
+  if(GetDirection(m_LastPressedKey) != Vec2(0,0)){
+    Network::Packet direction_packet;
+    Vec2 dir = GetDirection(m_LastPressedKey);
+    
+    direction_packet << static_cast<uint8_t>(Event::DIRECTION) << m_ClientsData.front()->id << dir << m_Snakes[m_ClientsData.front()->id].GetPosition();
+    
+    if(!direction_packet.IsEmpty()){
+      Network::send_packet(m_ClientWrapper.GetPeer(),direction_packet,0,ENET_PACKET_FLAG_RELIABLE);
+    }
   }
 
   auto& event = m_ClientWrapper.GetEvent();
@@ -173,7 +160,7 @@ void Game::InputHandler()
                 uint32_t food_amount{};
                 packet >> food_amount;
 
-                for(int i = 0; i < food_amount;i++){
+                for(size_t i = 0; i < food_amount;i++){
                   uint32_t food_id = 0;
                   Vec2 food_pos;
                   packet >> food_id >> food_pos;
@@ -193,7 +180,7 @@ void Game::InputHandler()
             int score;
             packet >> client_id >> score;
             
-             std::weak_ptr<ClientData> weak_client = GetClientById(client_id);
+            std::weak_ptr<ClientData> weak_client = GetClientById(client_id);
 
             if(auto client = weak_client.lock()){
               client->score = score;
@@ -209,7 +196,7 @@ void Game::InputHandler()
             for(size_t i = 0;i<client_size;i++){
               uint32_t client_id{};
               Stats stats;
-              packet >> client_id >> stats.Wins >> stats.Losses;
+              packet >> client_id >> stats.wins >> stats.losses;
               
               std::weak_ptr<ClientData> weak_client = GetClientById(client_id);
 
@@ -261,11 +248,9 @@ void Game::Update()
     auto& pos = m_Snakes[m_ClientsData.front()->id].GetPosition();
     
     uint8_t event = (uint8_t)Event::BROADCAST_POSITION;
-    int x = pos.x;
-    int y = pos.y;
     
     Network::Packet packet;
-    packet << event << m_ClientsData.front()->id << static_cast<uint8_t>(EntityType::SNAKE) << x << y;
+    packet << event << m_ClientsData.front()->id << static_cast<uint8_t>(EntityType::SNAKE) << pos;
 
     Network::send_packet(m_ClientWrapper.GetPeer(),packet,0,ENET_PACKET_FLAG_RELIABLE);
   }
@@ -285,18 +270,16 @@ void Game::Render()
 
   int win_w{m_Window.GetWindowWidth()},win_h{m_Window.GetWindowHeight()};
 
-  for(int i = 0,offset_y = 0;i < m_ClientsData.size();i++,offset_y += 2){
+  for(size_t i = 0,offset_y = 0;i < m_ClientsData.size();i++,offset_y += 2){
    std::string score_str = std::to_string(m_ClientsData[i]->score);
    auto username = m_ClientsData[i]->sUsername;
-   auto wins = std::to_string(m_ClientsData[i]->stats.Wins);
-   auto losses = std::to_string(m_ClientsData[i]->stats.Losses);
+   auto wins = std::to_string(m_ClientsData[i]->stats.wins);
+   auto losses = std::to_string(m_ClientsData[i]->stats.losses);
 
    std::string msg("Username: " + username + " -"  " Score: " + score_str + "," + " Wins: " + wins + "," + " Losses: " + losses + ".");
    move((win_h / 2) + offset_y,(win_w * 0.6) - (msg.length() / 2));
    printw(msg.c_str());
   }
-
-  m_Map.Render();
   
-  refresh();
+  m_Map.Render();
 }

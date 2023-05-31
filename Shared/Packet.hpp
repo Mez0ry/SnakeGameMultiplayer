@@ -3,7 +3,7 @@
 #include "enet/enet.h"
 #include <cstring>
 #include <vector>
-#include <iostream>
+#include "Vector.hpp"
 
 namespace Network {
 
@@ -44,36 +44,29 @@ public:
     return (*this);
   }
 
-  Packet& operator<<(uint16_t data){
-    auto res = htons((uint16_t)data);
-
-    Append(&res,sizeof(res));
-    return (*this);
-  }
-
-  Packet& operator<<(uint32_t data){
-    auto res = (uint32_t)(htonl((uint32_t)data));
-    
-    Append(&res,sizeof(res));
-    return (*this);
-  }
-
   Packet& operator<<(int8_t data){
     Append(&data,sizeof(data));
     return (*this);
   }
 
-  Packet& operator<<(int16_t data){
-    auto res = (int16_t)htons((uint16_t)data);
-
+  template <typename T, class = typename std::enable_if_t<(sizeof(T) > sizeof(uint8_t) && (std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
+  Packet& operator<<(T data){
+    T res = static_cast<T>(HostToNet<T>(data));
     Append(&res,sizeof(res));
     return (*this);
   }
 
-  Packet& operator<<(int32_t data){
-    auto res = (int32_t)htonl((uint32_t)data);
+  Packet& operator<<(const char* data){
+    const auto len = (uint32_t)(std::strlen(data));
+    *this << len;
 
-    Append(&res,sizeof(res));
+    Append(data,(len * sizeof(uint8_t)));
+
+    return (*this);
+  }
+
+  Packet& operator<<(Vec2 vector){
+    (*this) << vector.x << vector.y;
     return (*this);
   }
 
@@ -86,51 +79,21 @@ public:
     return (*this);
   }
 
-  Packet& operator>>(uint16_t& data){
-    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
-    data = (uint16_t)ntohs(data);
-    m_ReadPos += sizeof(data);
-    return (*this);
-  }
-
-  Packet& operator>>(uint32_t& data){
-    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
-    data = ntohl(data);
-    m_ReadPos += sizeof(data);
-    return (*this);
-  }
-
   Packet& operator>>(int8_t& data){
     memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
     m_ReadPos += sizeof(data);
     return (*this);
   }
 
-  Packet& operator>>(int16_t& data){
-    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
-    data = (int16_t)ntohs((uint16_t)data);
-    m_ReadPos += sizeof(data);
-    return (*this);
-  } 
-
-  Packet& operator>>(int32_t& data){
-    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
-    data = (int32_t)ntohl((uint32_t)data);
+  template <typename T, class = typename std::enable_if_t<(sizeof(T) > sizeof(uint8_t) && (std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
+  Packet& operator>>(T& data){
+    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(T));
+    data = NetToHost<T>(data);
     m_ReadPos += sizeof(data);
     return (*this);
   }
 
-  Packet& operator <<(const char* data){
-
-    const auto len = (uint32_t)(std::strlen(data));
-    *this << len;
-
-    Append(data,(len * sizeof(uint8_t)));
-
-    return (*this);
-  }
-
-  Packet& operator >>(char* data){
+  Packet& operator>>(char* data){
      std::uint32_t size = 0;
     *this >> size;
 
@@ -147,20 +110,32 @@ public:
     return (*this);
   }
 
-  template <typename Vector,typename = std::enable_if_t<std::is_same_v<int,std::conditional_t<is_physics_vector_v<Vector> ,int,std::nullptr_t> >,std::nullptr_t> > 
-  Packet& operator<<(Vector data){
-    (*this) << data.x << data.y;
-    return (*this);
-  }
-
-  template <typename Vector,typename = std::enable_if_t<std::is_same_v<int,std::conditional_t<is_physics_vector_v<Vector> ,int,std::nullptr_t> >,std::nullptr_t> > 
-  Packet& operator>>(Vector& data){
-    (*this) >> data.x >> data.y;
+  Packet& operator>>(Vec2& vector){
+    (*this) >> vector.x >> vector.y;
     return (*this);
   }
 
   bool IsEmpty() const{
     return m_Bytes.empty();
+  }
+
+private:
+  template<typename T, class = typename std::enable_if_t<(std::is_integral_v<T> || std::is_unsigned_v<T>)> >
+  T NetToHost(T& data){
+    if constexpr(sizeof(T) == sizeof(uint16_t)){
+      return static_cast<T>((T)ntohs(data));
+    }else if constexpr(sizeof(T) == sizeof(uint32_t)){
+      return static_cast<T>((T)ntohl(data));
+    }
+  }
+
+  template<typename T, class = typename std::enable_if_t<(std::is_integral_v<T> || std::is_unsigned_v<T>)> >
+  T HostToNet(T& data){
+    if constexpr(sizeof(T) == sizeof(uint16_t)){
+      return static_cast<T>((T)htons(data));
+    }else if constexpr(sizeof(T) == sizeof(uint32_t)){
+      return static_cast<T>((T)htonl(data));
+    }
   }
   
 private:
