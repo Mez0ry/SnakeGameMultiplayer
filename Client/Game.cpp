@@ -267,12 +267,12 @@ void Game::Render()
   for(auto& food : m_FoodMap){
     Map::RenderEntity(m_Map,food.second);
   }
-
+  
   int y_offset = 0;
   for(auto& client : m_ClientsData){
     RenderClientData(client,y_offset);
     y_offset += 2;
   }
-
+  
   m_Map.Render();
 }

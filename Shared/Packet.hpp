@@ -37,19 +37,9 @@ public:
     return m_ReadPos;
   }
 
-  /** left bit-shift operator*/
-
-  Packet& operator<<(uint8_t data){
-    Append(&data,sizeof(data));
-    return (*this);
-  }
-
-  Packet& operator<<(int8_t data){
-    Append(&data,sizeof(data));
-    return (*this);
-  }
-
-  template <typename T, class = typename std::enable_if_t<(sizeof(T) > sizeof(uint8_t) && (std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
+  /** left bit-shift operators*/
+  
+  template <typename T, class = typename std::enable_if_t<((std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
   Packet& operator<<(T data){
     T res = static_cast<T>(HostToNet<T>(data));
     Append(&res,sizeof(res));
@@ -57,7 +47,7 @@ public:
   }
 
   Packet& operator<<(const char* data){
-    const auto len = (uint32_t)(std::strlen(data));
+    const auto len = std::strlen(data);
     *this << len;
 
     Append(data,(len * sizeof(uint8_t)));
@@ -70,22 +60,12 @@ public:
     return (*this);
   }
 
-  /** right bit-shift operator*/
-  Packet& operator>>(uint8_t& data){
-    auto size = sizeof(data);
-    memcpy(&data,&m_Bytes[m_ReadPos],size);
-    m_ReadPos += size;
-
-    return (*this);
-  }
-
-  Packet& operator>>(int8_t& data){
-    memcpy(&data,&m_Bytes[m_ReadPos],sizeof(data));
-    m_ReadPos += sizeof(data);
-    return (*this);
-  }
-
-  template <typename T, class = typename std::enable_if_t<(sizeof(T) > sizeof(uint8_t) && (std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
+  /** right bit-shift operators*/
+  
+  /**
+   * @brief handles integral and unsigned types
+  */
+  template <typename T, class = typename std::enable_if_t<((std::is_integral_v<T>) || (std::is_unsigned_v<T>)),void> >
   Packet& operator>>(T& data){
     memcpy(&data,&m_Bytes[m_ReadPos],sizeof(T));
     data = NetToHost<T>(data);
@@ -99,13 +79,10 @@ public:
 
     if(size == 0) return (*this);
 
-    if ((size > 0) )
-    {
-        std::memcpy(data, &m_Bytes[m_ReadPos], size);
-        data[size] = '\0';
+    std::memcpy(data, &m_Bytes[m_ReadPos], size);
+    data[size] = '\0';
 
-        m_ReadPos += size;
-    }
+    m_ReadPos += size;
 
     return (*this);
   }
@@ -127,6 +104,8 @@ private:
     }else if constexpr(sizeof(T) == sizeof(uint32_t)){
       return static_cast<T>((T)ntohl(data));
     }
+    
+    return static_cast<T>(data);
   }
 
   template<typename T, class = typename std::enable_if_t<(std::is_integral_v<T> || std::is_unsigned_v<T>)> >
@@ -136,6 +115,8 @@ private:
     }else if constexpr(sizeof(T) == sizeof(uint32_t)){
       return static_cast<T>((T)htonl(data));
     }
+
+    return static_cast<T>(data);
   }
   
 private:
